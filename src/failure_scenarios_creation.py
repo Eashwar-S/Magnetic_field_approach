@@ -315,7 +315,7 @@ def main():
     else:
         print(f"[!] Solution file not found: {sol_file}")
 
-def plot_failure_histograms(failure_counts_by_instance, output_dir="../New_Failure_Scenarios/Failure_Distributions"):
+def plot_failure_histograms(failure_counts_by_instance, output_dir="../New_Failure_Scenarios_1/Failure_Distributions"):
         os.makedirs(output_dir, exist_ok=True)
         for instance_name, failure_counts in failure_counts_by_instance.items():
             histogram = defaultdict(int)
@@ -444,9 +444,9 @@ def regenerate_histograms_from_augmented_files(base_dir="../New_Failure_Scenario
 
     instance_map = {
         "gdb": 37,
-        "bccm": 108,
-        "eglese": 112
-    }
+        "bccm": 108}
+        # "eglese": 112
+    # }
     failure_counts_by_instance = {inst: [] for inst in instance_map}
 
     pattern = re.compile(r"Vehicle\s+(\d+)\s+will\s+fail\s+in\s+(\d+)\s+time units")

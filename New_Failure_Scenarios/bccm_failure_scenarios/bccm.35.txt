@@ -75,6 +75,6 @@ LIST_NON_REQUIRED_EDGES:
 (31,32) edge weight 3.0
 (32,33) edge weight 5.0
 FAILURE_SCENARIO:
-Vehicle 1 will fail in 163 time units.
-Vehicle 4 will fail in 271 time units.
-Vehicle 3 will fail in 239 time units.
+Vehicle 2 will fail in 227 time units.
+Vehicle 1 will fail in 141 time units.
+Vehicle 3 will fail in 51 time units.
