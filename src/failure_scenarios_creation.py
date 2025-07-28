@@ -349,7 +349,7 @@ def augment_all_failure_scenarios():
 
     random.seed(datetime.now())
 
-    instances = {'gdb': 37, 'bccm': 108, 'eglese': 112}
+    instances = {'gdb': 37, 'bccm': 108}#, 'eglese': 112}
     base_folder = "../New_Failure_Scenarios"
     sol_base = "../results/Instance_results_without_failure"
 
@@ -367,7 +367,7 @@ def augment_all_failure_scenarios():
             vehicle_route_times.append(total_time)
         return vehicle_route_times
 
-    def generate_updated_failure_scenario(file_path, vehicle_route_times, output_base="../New_Failure_Scenarios"):
+    def generate_updated_failure_scenario(file_path, vehicle_route_times, output_base="../New_Failure_Scenarios_1"):
         with open(file_path, 'r') as f:
             lines = f.readlines()
 
@@ -396,7 +396,7 @@ def augment_all_failure_scenarios():
             failure_time = random.randint(3, max_fail_time)
             failure_lines.append(f"Vehicle {vid} will fail in {failure_time} time units.\n")
 
-        rel_path = os.path.relpath(file_path, "../Balanced_Failure_Scenarios")
+        rel_path = os.path.relpath(file_path, "../New_Failure_Scenarios")
         new_path = os.path.join(output_base, rel_path)
         os.makedirs(os.path.dirname(new_path), exist_ok=True)
 
@@ -438,7 +438,7 @@ def augment_all_failure_scenarios():
 
     plot_failure_histograms(failure_counts_by_instance)
 
-def regenerate_histograms_from_augmented_files(base_dir="../New_Failure_Scenarios"):
+def regenerate_histograms_from_augmented_files(base_dir="../New_Failure_Scenarios_1"):
     import re
     from collections import defaultdict
 
