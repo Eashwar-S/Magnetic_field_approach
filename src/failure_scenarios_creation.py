@@ -349,8 +349,8 @@ def augment_all_failure_scenarios():
 
     random.seed(datetime.now())
 
-    instances = {'gdb': 37, 'bccm': 108}#, 'eglese': 112}
-    base_folder = "../New_Failure_Scenarios"
+    instances = {'gdb': 37, 'bccm': 108, 'eglese': 112}
+    base_folder = "../New_Failure_Scenarios_old"
     sol_base = "../results/Instance_results_without_failure"
 
     failure_counts_by_instance = {inst: [] for inst in instances}
@@ -396,7 +396,7 @@ def augment_all_failure_scenarios():
             failure_time = random.randint(3, max_fail_time)
             failure_lines.append(f"Vehicle {vid} will fail in {failure_time} time units.\n")
 
-        rel_path = os.path.relpath(file_path, "../New_Failure_Scenarios")
+        rel_path = os.path.relpath(file_path, "../New_Failure_Scenarios_old")
         new_path = os.path.join(output_base, rel_path)
         os.makedirs(os.path.dirname(new_path), exist_ok=True)
 
@@ -444,9 +444,9 @@ def regenerate_histograms_from_augmented_files(base_dir="../New_Failure_Scenario
 
     instance_map = {
         "gdb": 37,
-        "bccm": 108}
-        # "eglese": 112
-    # }
+        "bccm": 108,
+        "eglese": 112
+    }
     failure_counts_by_instance = {inst: [] for inst in instance_map}
 
     pattern = re.compile(r"Vehicle\s+(\d+)\s+will\s+fail\s+in\s+(\d+)\s+time units")
