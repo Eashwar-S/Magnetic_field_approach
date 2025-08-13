@@ -1,0 +1,9 @@
+,Instance Name,Number of Nodes,Number of Edges,Number of Required Edges,Capacity,Total UAVs,Number of Depot Nodes,Mean GA Maximum Trip Time,STDEV GA Maximum Trip Time,Best GA Maximum Trip Time,Mean Execution Time GA,STDEV Execution Time GA,Best Execution Time GA
+0,"Montana, US4",75,130,39,31,19,16,250,21.5,232.5,83.2,20.6,48.1
+1,"Georgia, US5",133,214,28,31,14,27,593.2,45.3,519.6,121.7,26,92
+2,"Minnesota, US0",222,344,115,31,57,45,,,,,,
+3,"Ohio, US2",192,353,112,31,56,39,434.8,38.3,374,4178.7,640.9,3358.6
+,"Georgia, US7",290,423,26,31,13,59,646.6,50.7,564.5,381.7,82,257.9
+,"Michigan, US1",288,494,163,31,81,58,,,,,,
+,"Pennsylvania, US3",374,622,81,31,40,75,,,,,,
+,"Atlanta, Georgia, US6",461,879,286,31,143,93,,,,,,

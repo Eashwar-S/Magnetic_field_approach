@@ -1,0 +1,9 @@
+,Instance Name,Number of Nodes,Number of Edges,Number of Required Edges,Capacity,Total UAVs,Number of Depot Nodes,Multi-trip Algorithm Execution Time,Multi-trip Algorithm Maximum Trip Time,Mean Simulated Annealing Maximum Trip Time,STDEV Simulated Annealing Maximum Trip Time,Best Simulated Annealing Maximum Trip Time,Mean Execution Time Simulated Annealing-500,STDEV Execution Time Simulated Annealing-500,Best Execution Time Simulated Annealing-500
+0,"Montana, US4",75,130,39,31,19,16,22.541,25.2,27.6,0,27.6,42.1,1.3,40.6
+1,"Georgia, US5",133,214,28,31,14,27,5.045,562.6,425.3,0,425.3,117.3,7.6,107.1
+,"Minnesota, US0",222,344,115,31,57,45,1596.133,29.9,20.9,2.2,18.8,355.1,55.5,288.1
+3,"Ohio, US2",192,353,112,31,56,39,233.904,139.2,127,4.3,120.5,181.8,12.8,167.3
+4,"Georgia, US7",290,423,26,31,13,59,7.716,1012,420.8,150.5,269.3,452.7,36.3,407.4
+5,"Michigan, US1",288,494,163,31,81,58,2180.906,30.5,34.4,0,34.4,634.7,28.6,584.4
+6,"Pennsylvania, US3",374,622,81,31,40,75,,,,,,,,
+7,"Atlanta, Georgia, US6",461,879,286,31,143,93,2136.059,122.2,104.1,7.8,92.5,1043.2,29.4,970.4

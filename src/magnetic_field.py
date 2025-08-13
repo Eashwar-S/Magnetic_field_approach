@@ -134,7 +134,7 @@ class MagneticFieldRouter:
             'normalized_weight': self.graph[edge[0]][edge[1]]['weight'] / self.max_edge_weight
         }
     
-    def find_route_with_magnetic_scoring(self, required_edges, verbose=False):
+    def find_trip_with_magnetic_scoring(self, required_edges, verbose=False):
         current_route = [self.start_depot]
         current_length = 0
         required_covered = set()
@@ -283,12 +283,15 @@ class IntelligentCapacityTuner:
         self.results = []
         self.best_capacity = None
         self.best_score = float('inf')
+        self.best_route = None
+        self.best_cost = float('inf')
+        self.num_required_edges_covered = None
         
     def evaluate_capacity(self, capacity):
         router = MagneticFieldRouter(self.graph, self.start_depot, self.end_depot, 
                                    capacity, alpha=1.0, gamma=1.0)  # Updated alpha to 1.0
         
-        route, cost, required_covered = router.find_route_with_magnetic_scoring(self.required_edges)
+        route, cost, required_covered = router.find_trip_with_magnetic_scoring(self.required_edges)
         
         if route is None:
             fitness = float('inf')
@@ -326,7 +329,7 @@ class IntelligentCapacityTuner:
     #     return self.results
     
     def random_search(self, n_iterations=50):
-        print(f"Starting random search with {n_iterations} iterations...")
+        # print(f"Starting random search with {n_iterations} iterations...")
         
         for i in range(n_iterations):
             # Generate a beta random variable skewed towards higher values
@@ -340,9 +343,12 @@ class IntelligentCapacityTuner:
             if result['fitness'] < self.best_score:
                 self.best_score = result['fitness']
                 self.best_capacity = capacity
+                self.best_route = result['route']
+                self.best_cost = result['cost'] 
+                self.num_required_edges_covered = result['required_covered']
             
-            if (i + 1) % 10 == 0:  # Adjusted for fewer iterations
-                print(f"Iteration {i+1}: Best fitness = {self.best_score:.2f}")
+            # if (i + 1) % 10 == 0:  # Adjusted for fewer iterations
+            #     print(f"Iteration {i+1}: Best fitness = {self.best_score:.2f}")
         
         return self.results
     
@@ -358,6 +364,9 @@ class IntelligentCapacityTuner:
             if result['fitness'] < self.best_score:
                 self.best_score = result['fitness']
                 self.best_capacity = capacity
+                self.best_route = result['route']
+                self.best_cost = result['cost'] 
+                self.num_required_edges_covered = result['required_covered']
         
         feasible_results = [r for r in self.results if r['feasible']]
         if feasible_results:
@@ -613,7 +622,7 @@ def run_intelligent_tuning_demo():
         print(f"\nTesting best capacity: {tuner.best_capacity:.3f}")
         best_router = MagneticFieldRouter(SIMPLE_GRAPH, START_DEPOT, END_DEPOT, 
                                         tuner.best_capacity, alpha=1.0, gamma=1.0)
-        route, cost, required_covered = best_router.find_route_with_magnetic_scoring(REQUIRED_EDGES + FAILED_EDGES, verbose=True)
+        route, cost, required_covered = best_router.find_trip_with_magnetic_scoring(REQUIRED_EDGES + FAILED_EDGES, verbose=True)
         
         if route:
             print(f"Best route: {route}")
