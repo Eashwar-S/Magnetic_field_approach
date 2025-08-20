@@ -109,20 +109,20 @@ class MagneticFieldRouter:
             influences[edge[::-1]] = influence
         
         return influences
-    
-    def calculate_edge_score(self, edge, required_to_cover, current_length, is_new_required=False):
+
+    def calculate_edge_score(self, edge, required_to_cover, current_length, is_new_required=False, total_required_edges=0):
         req_influences = self.calculate_required_edge_influence(required_to_cover)
         depot_influences = self.calculate_depot_influence()
         
-        P = max(req_influences[edge].values()) if req_influences[edge] else 0.0
+        P = sum(req_influences[edge].values()) if req_influences[edge] else 0.0
         D = depot_influences[edge]
         w = current_length / self.capacity if self.capacity > 0 else 0
         S = (1 - w) * P + w * D
-        
-        if is_new_required:
-            final_score = 1000 + S  # Large bonus for uncovered required edges
-        else:
-            final_score = S
+        final_score = S
+        # if is_new_required:
+        #     final_score = 1000/total_required_edges + S  # Large bonus for uncovered required edges
+        # else:
+        #     final_score = S + (2*self.capacity)/(self.capacity - current_length + 1)
             
         return {
             'P': P,
@@ -140,8 +140,9 @@ class MagneticFieldRouter:
         required_covered = set()
         max_iterations = len(self.graph.edges()) * 10
         iteration_count = 0
-        
-        while len(required_covered) < len(required_edges) and iteration_count < max_iterations:
+        total_required_edges = len(required_edges)
+
+        while len(required_covered) < total_required_edges and iteration_count < max_iterations:
             current_node = current_route[-1]
             candidates = []
             iteration_count += 1
@@ -172,7 +173,7 @@ class MagneticFieldRouter:
                 is_new_required = (edge_sorted in [tuple(sorted(req)) for req in required_edges] 
                                 and edge_sorted not in required_covered)
                 
-                score_data = self.calculate_edge_score(edge, required_to_cover, current_length, is_new_required)
+                score_data = self.calculate_edge_score(edge, required_to_cover, current_length, is_new_required, total_required_edges)
                 
                 candidates.append({
                     'edge': edge,
@@ -334,8 +335,8 @@ class IntelligentCapacityTuner:
         for i in range(n_iterations):
             # Generate a beta random variable skewed towards higher values
             beta_rv = np.random.beta(2, 1)
-            # Scale to the range [self.max_capacity/3, self.max_capacity]
-            capacity = self.max_capacity / 3 + beta_rv * (self.max_capacity - self.max_capacity / 3)
+            # Scale to the range [self.max_capacity/5, self.max_capacity]
+            capacity = self.max_capacity / 5 + beta_rv * (self.max_capacity - self.max_capacity / 5)
             # capacity = self.max_capacity * beta_rv
             result = self.evaluate_capacity(capacity)
             self.results.append(result)

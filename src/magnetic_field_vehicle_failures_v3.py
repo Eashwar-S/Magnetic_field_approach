@@ -437,7 +437,7 @@ def handle_vehicle_failure_with_magnetic_field(G, t, failure_history, vehicle_ro
 
 def evaluate_all_vehicles_for_best_trip(G, non_failed_vehicles, vehicle_end_locations, 
                                        depot_nodes, depot_distances, vehicle_capacity, 
-                                       remaining_required_edges, vehicle_route_times, recharge_time):
+                                       remaining_required_edges, vehicle_route_times, recharge_time, iterations):
     """
     Simplified approach: Get the best trip for each vehicle, then compare all trips
     to select the globally best one.
@@ -465,9 +465,9 @@ def evaluate_all_vehicles_for_best_trip(G, non_failed_vehicles, vehicle_end_loca
                 # Evaluate trip using magnetic field approach
                 tuner = IntelligentCapacityTuner(G, start_depot, end_depot, vehicle_capacity, 
                                                remaining_required_edges.copy())
-                
-                tuner.random_search(50)
-                
+
+                tuner.random_search(iterations)
+
                 if tuner.best_capacity is not None:
                     trip, cost, covered_count = tuner.best_route, tuner.best_cost, tuner.num_required_edges_covered
                     
@@ -502,7 +502,7 @@ def evaluate_all_vehicles_for_best_trip(G, non_failed_vehicles, vehicle_end_loca
                 'coverage': best_coverage_for_vehicle,
                 'current_route_time': current_route_time,
                 'new_route_time': new_route_time,
-                'route_time_increase': best_cost_for_vehicle + recharge_time
+                'route_time_increase': best_cost_for_vehicle
             })
     
     # Step 2: Compare all vehicles' best trips and select the globally best one
@@ -510,8 +510,8 @@ def evaluate_all_vehicles_for_best_trip(G, non_failed_vehicles, vehicle_end_loca
         return None
     
     # Sort by coverage (descending), then by route time increase (ascending)
-    vehicle_best_trips.sort(key=lambda x: (-x['coverage'], x['route_time_increase']))
-    
+    vehicle_best_trips.sort(key=lambda x: (x['coverage']/(x['route_time_increase'] + (vehicle_capacity - x['cost']))), reverse=True)
+
     return vehicle_best_trips[0]  # Return the best overall assignment
 
 
@@ -552,7 +552,7 @@ def evaluate_vehicle_depot_combinations(G, non_failed_vehicles, vehicle_end_loca
                         
                         # Calculate mission time penalty (how much this adds to current mission time)
                         new_route_time = current_route_time + cost + recharge_time
-                        mission_time_penalty = new_route_time
+                        # mission_time_penalty = new_route_time
                         
                         # Combined heuristic score
                         # Prioritize: high coverage, low mission time penalty
@@ -562,12 +562,12 @@ def evaluate_vehicle_depot_combinations(G, non_failed_vehicles, vehicle_end_loca
                             
                             # Normalized mission time penalty (0-1 scale)
                             max_route_time = max(vehicle_route_times) if vehicle_route_times else 1
-                            normalized_penalty = mission_time_penalty -  max_route_time if max_route_time > 0 else 0
+                            mission_time_increase = max_route_time - new_route_time + 0.0001
                             
                             # Combined score: prioritize coverage efficiency, penalize mission time
                             # Higher score is better
                             # combined_score = coverage_efficiency - normalized_penalty
-                            combined_score = normalized_penalty - coverage_efficiency *(vehicle_capacity + recharge_time)
+                            combined_score = coverage_efficiency/ mission_time_increase#normalized_penalty - coverage_efficiency *(vehicle_capacity + recharge_time)
                             
                             combinations.append({
                                 'vehicle_idx': vehicle_idx,
@@ -576,18 +576,17 @@ def evaluate_vehicle_depot_combinations(G, non_failed_vehicles, vehicle_end_loca
                                 'trip': trip,
                                 'cost': cost,
                                 'coverage': actual_coverage,
-                                'coverage_efficiency': coverage_efficiency,
-                                'mission_time_penalty': mission_time_penalty,
-                                'normalized_penalty': normalized_penalty,
-                                'combined_score': combined_score
+                                'num_req_edges': coverage_efficiency,
+                                'mission_time_increase': mission_time_increase,
+                                'metric': combined_score
                             })
                             
             except Exception as e:
                 continue
     
     # Sort by combined score (descending - higher is better)
-    combinations.sort(key=lambda x: x['combined_score'], reverse=True)
-    
+    combinations.sort(key=lambda x: x['metric'], reverse=True)
+
     return combinations
 
 def group_vehicles_by_depot(non_failed_vehicles, vehicle_end_locations):
@@ -603,7 +602,7 @@ def group_vehicles_by_depot(non_failed_vehicles, vehicle_end_locations):
 
 def handle_vehicle_failure_with_improved_magnetic_field(G, t, failure_history, vehicle_routes, vehicle_trip_times, 
                                                        vehicle_trip_index, depot_nodes, failure_trips, vehicle_capacity, 
-                                                       recharge_time, uav_location, recent_failure_vehicle):
+                                                       recharge_time, uav_location, recent_failure_vehicle, iterations):
     """
     Improved magnetic field approach that balances edge coverage potential with mission time impact.
     
@@ -674,7 +673,7 @@ def handle_vehicle_failure_with_improved_magnetic_field(G, t, failure_history, v
         best_assignment = evaluate_all_vehicles_for_best_trip(
             G, non_failed_vehicles, vehicle_end_locations, depot_nodes, 
             depot_distances, vehicle_capacity, remaining_required_edges, 
-            vehicle_route_times, recharge_time
+            vehicle_route_times, recharge_time, iterations
         )
         
         if best_assignment is None:
@@ -739,7 +738,7 @@ def handle_vehicle_failure_with_improved_magnetic_field(G, t, failure_history, v
 
 
 # GDB
-def simulate_1(save_results_to_csv=False):
+def simulate_1(save_results_to_csv=False, iterations=300):
     p = '..'
     
     instanceData = {
@@ -865,7 +864,7 @@ def simulate_1(save_results_to_csv=False):
                     vehicle_routes, vehicle_trip_times, mf_results = handle_vehicle_failure_with_improved_magnetic_field(
                                                                 G, t, failure_history, vehicle_routes, vehicle_trip_times,
                                                                 vehicle_trip_index, depot_nodes, failure_trips, vehicle_capacity,
-                                                                recharge_time, uavLocation, recent_failure_vehicle
+                                                                recharge_time, uavLocation, recent_failure_vehicle, iterations
                                                             )
                                                                                 
                     print(f"Vehicle routes after handling failure: {vehicle_routes}")
@@ -927,7 +926,7 @@ def simulate_1(save_results_to_csv=False):
             
             if save_results_to_csv:
                 df = pd.DataFrame(instanceData)
-                df.to_csv(f"magnetic_field_gdb_new.csv", index=True)
+                df.to_csv(f"magnetic_field_gdb_new." + str(iterations) + ".csv", index=True)
 
 # BCCM
 def simulate_2(save_results_to_csv=False):
@@ -1312,6 +1311,6 @@ def simulate_3(save_results_to_csv=False):
 
 
 if __name__ == "__main__":
-    simulate_1(save_results_to_csv=True)
-    # simulate_2(save_results_to_csv=False)
-    # simulate_3(save_results_to_csv=True)
+    simulate_1(save_results_to_csv=True, iterations=300)
+    # simulate_2(save_results_to_csv=False, iterations=300)
+    # simulate_3(save_results_to_csv=True, iterations=300)
