@@ -1,2 +1,3 @@
 ,Instance Name,Number of Nodes,Number of Edges,Number of Required Edges,Capacity,Recharge Time,Total Number of Vehicles,Number of Depot Nodes,Number of vehicles failed,Maximum Trip Time,Number of Function Calls,Execution time for auction algorithm in sec,Maximum Trip Time after auction algorithm,% increase in maximum trip time,idle time,Average time per function call,Mean Mission Time SA,STDEV Mission Time SA,Best Mission Time SA
-0,gdb.1,11,19,10,40.0,80.0,5,5,3,37.0,3,90.528,255.0,589.2,0,30.176,255.0,0,255.0
+0,gdb.1,11,19,10,40.0,80.0,5,5,3,37.0,3,84.329,255.0,589.2,0,28.11,255.0,0,255.0
+1,gdb.10,12,22,11,40.0,80.0,5,5,2,39.0,2,102.867,268.0,587.2,0,51.434,268.0,0,268.0

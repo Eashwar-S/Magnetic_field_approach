@@ -119,10 +119,10 @@ class MagneticFieldRouter:
         w = current_length / self.capacity if self.capacity > 0 else 0
         S = (1 - w) * P + w * D
         final_score = S
-        # if is_new_required:
-        #     final_score = 1000/total_required_edges + S  # Large bonus for uncovered required edges
-        # else:
-        #     final_score = S + (2*self.capacity)/(self.capacity - current_length + 1)
+        if is_new_required:
+            final_score = 1000/total_required_edges + S  # Large bonus for uncovered required edges
+        else:
+            final_score = S + (2*self.capacity)/(self.capacity - current_length + 1)
             
         return {
             'P': P,
