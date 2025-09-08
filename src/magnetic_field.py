@@ -40,8 +40,8 @@ END_DEPOT = 5
 MAX_VEHICLE_CAPACITY = 32
 # REQUIRED_EDGES = [(1, 2), (3, 4)]  # Only 3 required edges for clarity
 # FAILED_EDGES = [(2, 3), (4, 6), (3,5)]  # Only 2 failed edges to handle
-REQUIRED_EDGES = [(1, 2), (3, 5), (4,6)]  # Only 3 required edges for clarity
-FAILED_EDGES = [(2, 4), (1, 4)]  # Only 2 failed edges to handle
+REQUIRED_EDGES = [[1, 2], [3, 5], [4,6]]  # Only 3 required edges for clarity
+FAILED_EDGES = [[2, 4], [1, 4]]  # Only 2 failed edges to handle
 
 
 class MagneticFieldRouter:
@@ -134,7 +134,7 @@ class MagneticFieldRouter:
             'normalized_weight': self.graph[edge[0]][edge[1]]['weight'] / self.max_edge_weight
         }
     
-    def find_trip_with_magnetic_scoring(self, required_edges, verbose=False):
+    def find_trip_with_magnetic_scoring(self, required_edges, verbose=True):
         current_route = [self.start_depot]
         current_length = 0
         required_covered = set()
@@ -150,8 +150,12 @@ class MagneticFieldRouter:
             # Update required edges to cover
             required_to_cover = [req for req in required_edges if tuple(sorted(req)) not in required_covered]
             
+            print(f'required edges to cover - {required_to_cover, required_covered}')
             # Get all possible next edges
             for neighbor in self.graph.neighbors(current_node):
+                
+                
+                
                 edge = (current_node, neighbor)
                 edge_sorted = tuple(sorted(edge))
                 edge_weight = self.graph[current_node][neighbor]['weight']
@@ -165,6 +169,13 @@ class MagneticFieldRouter:
                             self.graph, neighbor, self.end_depot, weight='weight'
                         )
                     
+                    print(f"Evaluating edge ({current_node}, {neighbor})")
+                    print(f"  - Edge weight: {edge_weight}")
+                    print(f"  - Path to end length: {path_to_end_length}")
+                    print(f"  - Total would be: {current_length + edge_weight + path_to_end_length}")
+                    print(f"  - Capacity: {self.capacity}")
+                    print(f"  - Passes capacity check: {current_length + edge_weight + path_to_end_length <= self.capacity}")
+                    # print(f"  - Is required: {is_new_required}")
                     if current_length + edge_weight + path_to_end_length > self.capacity:
                         continue
                 except nx.NetworkXNoPath:
@@ -172,6 +183,8 @@ class MagneticFieldRouter:
                 
                 is_new_required = (edge_sorted in [tuple(sorted(req)) for req in required_edges] 
                                 and edge_sorted not in required_covered)
+                
+                print(f'new required edge - {is_new_required}')
                 
                 score_data = self.calculate_edge_score(edge, required_to_cover, current_length, is_new_required, total_required_edges)
                 
@@ -181,6 +194,9 @@ class MagneticFieldRouter:
                     'is_new_required': is_new_required,
                     'score_data': score_data
                 })
+
+                
+                
             
             # Handle no candidates
             if not candidates:
@@ -272,6 +288,7 @@ class MagneticFieldRouter:
             print(f"Final route: {current_route}, Length: {current_length:.2f}")
             print(f"Required covered: {len(required_covered)}/{len(required_edges)}")
         
+        print(current_route, current_length, required_covered, required_edges, len(required_covered))
         return current_route, current_length, len(required_covered)
 
 class IntelligentCapacityTuner:
@@ -286,6 +303,7 @@ class IntelligentCapacityTuner:
         self.best_score = float('inf')
         self.best_route = None
         self.best_cost = float('inf')
+        self.required_edges_convered = []
         self.num_required_edges_covered = None
         
     def evaluate_capacity(self, capacity):
@@ -294,6 +312,7 @@ class IntelligentCapacityTuner:
         
         route, cost, required_covered = router.find_trip_with_magnetic_scoring(self.required_edges)
         
+        required_edges_convered = []
         if route is None:
             fitness = float('inf')
         else:
@@ -302,12 +321,26 @@ class IntelligentCapacityTuner:
             else:
                 missing_edges = len(self.required_edges) - required_covered
                 fitness = cost + 1000 * (missing_edges ** 2) + 500
+            
+            for i in range(len(route) - 1):
+                edge = [route[i], route[i+1]]
+                if edge in self.required_edges:
+                   required_edges_convered.append(edge) 
+                if edge[::-1] in self.required_edges:
+                    required_edges_convered.append(edge[::-1])
+
+            required_edges_convered = [tuple(edge) for edge in required_edges_convered]
+            required_edges_convered = list(set(required_edges_convered))
+            required_edges_convered = [list(edge) for edge in required_edges_convered]
+            print(route, required_edges_convered, self.required_edges, required_covered)
+            assert(len(required_edges_convered) == required_covered)
         
         return {
             'capacity': capacity,
             'route': route,
             'cost': cost,
             'required_covered': required_covered,
+            'required_edges_covered': required_edges_convered,
             'fitness': fitness,
             'feasible': route is not None and required_covered == len(self.required_edges)
         }
@@ -347,6 +380,7 @@ class IntelligentCapacityTuner:
                 self.best_route = result['route']
                 self.best_cost = result['cost'] 
                 self.num_required_edges_covered = result['required_covered']
+                self.required_edges_convered = result['required_edges_covered']
             
             # if (i + 1) % 10 == 0:  # Adjusted for fewer iterations
             #     print(f"Iteration {i+1}: Best fitness = {self.best_score:.2f}")

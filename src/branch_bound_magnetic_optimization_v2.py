@@ -16,8 +16,9 @@ plt.rcParams["figure.dpi"] = 300
 
 
 class Node:
-    def __init__(self, route, route_time, required_edges_to_be_traversed):
+    def __init__(self, route, route_time, trip_times, required_edges_to_be_traversed):
         self.route = route
+        self.trip_times = trip_times
         self.route_time = route_time
         self.required_edges_to_be_traversed = required_edges_to_be_traversed
 
@@ -35,21 +36,18 @@ class BranchBoundMagneticOptimizer:
         self.nodes_explored = 0
         self.nodes_pruned = 0
         
-    def calculate_actual_solution_cost(self, start_depot, end_depot, required_edges):
+    def trip_using_magnetic_field(self, start_depot, end_depot, required_edges):
         """
-        Calculate actual cost using magnetic field with intelligent tuning
-        This is used as both lower bound and actual solution
+        Designs trip using magnetic field with intelligent tuning.
         """
         # Use intelligent capacity tuner
         tuner = IntelligentCapacityTuner(self.graph, start_depot, end_depot, 
                                         self.vehicle_capacity, required_edges)
         tuner.random_search(n_iterations=50)  # Quick evaluation for bounding
         
-        if tuner.best_capacity and tuner.best_route:
-            print(f'Intelligent tuning successful: capacity {tuner.best_capacity}, cost {tuner.best_cost}, covered {tuner.num_required_edges_covered}/{len(required_edges)}')
-            return tuner.best_cost, True  # cost, feasible
-        else:
-            return float('inf'), False
+        if tuner.num_required_edges_covered >= 1:
+            return tuner
+        return None
         
     
     def branch_and_bound_optimization(self, vehicles_to_optimize, required_edges_per_vehicle, 
@@ -62,13 +60,12 @@ class BranchBoundMagneticOptimizer:
             print(f"Upper bound (centralized auction total): {upper_bound}")
         
     
-        combined_solutions = {}
-        combined_cost = 0.0
-        any_improvement = False
         
         if verbose:
             print(f"Branch and bound approach ")
         
+        routes = {vehicle_idx: None for vehicle_idx in vehicles_to_optimize}
+
         for vehicle_idx in vehicles_to_optimize:
             required_edges = required_edges_per_vehicle[vehicle_idx]
             original_cost = original_costs[vehicle_idx]
@@ -77,45 +74,42 @@ class BranchBoundMagneticOptimizer:
 
             best_vehicle_cost = original_cost
             best_vehicle_solution = None
+            best_trip_times = None
+        
             
+            root_node = Node(route=[], trip_times=[], route_time=0, required_edges_to_be_traversed=copy.deepcopy(required_edges))
             explored_nodes = []
+            heapq.heappush(explored_nodes, (len(root_node.required_edges_to_be_traversed), root_node))
 
-            for end_depot in self.depot_nodes:
-                
-        #         cost, feasible = self.calculate_actual_solution_cost(start_depot, end_depot, required_edges)
-        #         print(f'cost = P{cost}, feasible = {feasible}')
-        #         self.nodes_explored += 1
-                
-        #         if feasible and cost < best_vehicle_cost:
-        #             route, detailed_cost, covered = self.design_trip_with_intelligent_tuning(
-        #                 start_depot, end_depot, required_edges
-        #             )
-        #             if route and covered == len(required_edges):
-        #                 best_vehicle_cost = detailed_cost
-        #                 best_vehicle_solution = (route, detailed_cost, covered)
-        #                 any_improvement = True
-        #                 if verbose:
-        #                     print(f"Vehicle {vehicle_idx + 1}: improved {original_cost:.2f} -> {detailed_cost:.2f}")
-        #         elif cost >= best_vehicle_cost:
-        #             self.nodes_pruned += 1
+            while explored_nodes:
+
+                priority, node = heapq.heappop(explored_nodes)
+                for end_depot in self.depot_nodes:
+
+                    tuner = self.trip_using_magnetic_field(start_depot, end_depot, copy.deepcopy(node.required_edges_to_be_traversed))
+
+                    if tuner is not None:
+                        left_over_required_edges = [edge for edge in node.required_edges_to_be_traversed if edge not in tuner.required_edges_convered]
+
+                        route_time_so_far = tuner.best_cost + self.recharge_time
+                        
+                        if route_time_so_far <= original_cost:
+                            if left_over_required_edges:
+                                if node.route_time == 0: # root node
+                                    child_node = Node(route=[tuner.best_route], trip_times=[tuner.best_cost], route_time=route_time_so_far, required_edges_to_be_traversed=left_over_required_edges)
+                                else:
+                                    child_node = Node(route=node.route.append(tuner.best_route), trip_times=node.trip_times.append(tuner.best_cost), route_time=route_time_so_far, required_edges_to_be_traversed=left_over_required_edges)                                    
+                                heapq.heappush(explored_nodes, (len(left_over_required_edges), child_node))
+                            else:
+                                if route_time_so_far <= best_vehicle_cost:
+                                    best_vehicle_cost = route_time_so_far
+                                    best_vehicle_solution = node.route
+                                    best_trip_times = node.trip_times
             
-        #     if best_vehicle_solution:
-        #         combined_solutions[vehicle_idx] = best_vehicle_solution
-        #         combined_cost += best_vehicle_cost
-        #     else:
-        #         combined_cost += original_cost  # No improvement, use original
-        
-        # if any_improvement and combined_cost < upper_bound:
-        #     self.best_cost = combined_cost
-        #     self.best_solution = combined_solutions
-        # else:
-        #     self.best_cost = upper_bound
-        #     self.best_solution = {}
-        
-        # if verbose:
-        #     print(f"Multiple vehicle optimization complete: best combined cost {self.best_cost:.2f}")
-        
-        # return self.best_solution, self.best_cost
+            if best_vehicle_solution is not None:
+                routes[vehicle_idx] = (best_vehicle_solution, best_trip_times)
+
+        return routes
 
 
 def optimize_with_branch_bound_post_auction(G, vehicle_routes, vehicle_trip_times, depot_nodes, 
@@ -172,7 +166,7 @@ def optimize_with_branch_bound_post_auction(G, vehicle_routes, vehicle_trip_time
             
             # Calculate original cost for this vehicle's future trips
             original_future_times = vehicle_trip_times[vehicle_idx][current_trip_idx:]
-            original_cost = sum(original_future_times) + (len(original_future_times) - 1) * recharge_time
+            original_cost = sum(original_future_times) + (len(original_future_times)) * recharge_time
             original_costs[vehicle_idx] = original_cost
     
     print(f"Vehicles to optimize: {vehicles_to_optimize}")
@@ -197,26 +191,30 @@ def optimize_with_branch_bound_post_auction(G, vehicle_routes, vehicle_trip_time
     optimizer = BranchBoundMagneticOptimizer(G, depot_nodes, vehicle_capacity, recharge_time)
     
     # Run branch and bound optimization
-    best_solutions, best_total_cost = optimizer.branch_and_bound_optimization(
+    best_solutions = optimizer.branch_and_bound_optimization(
         vehicles_to_optimize, required_edges_per_vehicle, original_costs, upper_bound, start_positions, verbose=verbose
     )
     
     # Apply improvements if found
-    if best_solutions and best_total_cost < upper_bound:
-        for vehicle_idx, (route, cost, covered) in best_solutions.items():
+    
+    for vehicle_idx, vehicle_route in best_solutions.items():
+        
+        if vehicle_route is not None:
+            route, trip_times = vehicle_route
             current_trip_idx = vehicle_trip_index[vehicle_idx] + 1
             
             # Replace future trips with optimized route
-            improved_routes[vehicle_idx] = (vehicle_routes[vehicle_idx][:current_trip_idx] + [route])
-            improved_trip_times[vehicle_idx] = (vehicle_trip_times[vehicle_idx][:current_trip_idx] + [cost])
+            improved_routes[vehicle_idx] = (vehicle_routes[vehicle_idx][:current_trip_idx] + route)
+            improved_trip_times[vehicle_idx] = (vehicle_trip_times[vehicle_idx][:current_trip_idx] + trip_times)
             
-            improvement = original_costs[vehicle_idx] - cost
+            route_cost = (sum(trip_times) + len(trip_times)*recharge_time)
+            improvement = original_costs[vehicle_idx] - route_cost
             total_improvement += improvement
             optimization_applied = True
             
             if verbose:
-                print(f"Vehicle {vehicle_idx + 1} optimized: {original_costs[vehicle_idx]:.2f} -> {cost:.2f} "
-                      f"(improvement: {improvement:.2f})")
+                print(f"Vehicle {vehicle_idx + 1} optimized: {original_costs[vehicle_idx]:.2f} -> {route_cost:.2f} "
+                        f"(improvement: {improvement:.2f})")
     
     if verbose:
         if optimization_applied:
