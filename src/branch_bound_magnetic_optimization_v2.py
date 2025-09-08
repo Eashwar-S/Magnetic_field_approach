@@ -15,6 +15,13 @@ import heapq
 plt.rcParams["figure.dpi"] = 300
 
 
+class Node:
+    def __init__(self, route, route_time, required_edges_to_be_traversed):
+        self.route = route
+        self.route_time = route_time
+        self.required_edges_to_be_traversed = required_edges_to_be_traversed
+
+
 class BranchBoundMagneticOptimizer:
     def __init__(self, graph, depot_nodes, vehicle_capacity, recharge_time, alpha=1.0, gamma=1.0):
         self.graph = graph
@@ -54,101 +61,61 @@ class BranchBoundMagneticOptimizer:
             print(f"Starting branch and bound with {len(vehicles_to_optimize)} vehicles")
             print(f"Upper bound (centralized auction total): {upper_bound}")
         
-        # For single vehicle case, just try all depot combinations
-        if len(vehicles_to_optimize) == 1:
-            vehicle_idx = vehicles_to_optimize[0]
-            required_edges = required_edges_per_vehicle[vehicle_idx]
-            original_cost = original_costs[vehicle_idx]
-            
-            # Determine start depot (where vehicle currently is)
-            start_depot = start_positions[vehicle_idx]#required_edges[0][0] if required_edges else self.depot_nodes[0]
-            
-            best_cost = original_cost
-            best_solution = None
-            
-            if verbose:
-                print(f"Single vehicle optimization - trying {len(self.depot_nodes)} end depots")
-            
-            for end_depot in self.depot_nodes:
-                print(f'Inputs for intelligent tuning start depot {start_depot}, end depot {end_depot}, required edges {required_edges} ')
-                cost, feasible = self.calculate_actual_solution_cost(start_depot, end_depot, required_edges)
-                self.nodes_explored += 1
-                
-                if feasible and cost < best_cost:
-                    # Get the actual detailed solution
-                    route, detailed_cost, covered = self.design_trip_with_intelligent_tuning(
-                        start_depot, end_depot, required_edges
-                    )
-                    if route and covered == len(required_edges):
-                        best_cost = detailed_cost
-                        best_solution = {vehicle_idx: (route, detailed_cost, covered)}
-                        if verbose:
-                            print(f"Better solution found: depot {end_depot}, cost {detailed_cost:.2f} vs original {original_cost:.2f}")
-                elif cost >= best_cost:
-                    self.nodes_pruned += 1
-            
-            self.best_cost = best_cost
-            self.best_solution = best_solution if best_solution else {}
-            
-            if verbose:
-                print(f"Single vehicle optimization complete: best cost {self.best_cost:.2f}")
-            
-            return self.best_solution, self.best_cost
-        
-        # For multiple vehicles, use simplified approach due to complexity
-        # Try to optimize each vehicle independently and combine results
+    
         combined_solutions = {}
         combined_cost = 0.0
         any_improvement = False
         
         if verbose:
-            print(f"Multiple vehicle optimization - independent optimization")
+            print(f"Branch and bound approach ")
         
         for vehicle_idx in vehicles_to_optimize:
             required_edges = required_edges_per_vehicle[vehicle_idx]
             original_cost = original_costs[vehicle_idx]
             
-            # start_depot = required_edges[0][0] if required_edges else self.depot_nodes[0]
             start_depot = start_positions[vehicle_idx]
 
             best_vehicle_cost = original_cost
             best_vehicle_solution = None
             
+            explored_nodes = []
+
             for end_depot in self.depot_nodes:
-                cost, feasible = self.calculate_actual_solution_cost(start_depot, end_depot, required_edges)
-                print(f'cost = P{cost}, feasible = {feasible}')
-                self.nodes_explored += 1
                 
-                if feasible and cost < best_vehicle_cost:
-                    route, detailed_cost, covered = self.design_trip_with_intelligent_tuning(
-                        start_depot, end_depot, required_edges
-                    )
-                    if route and covered == len(required_edges):
-                        best_vehicle_cost = detailed_cost
-                        best_vehicle_solution = (route, detailed_cost, covered)
-                        any_improvement = True
-                        if verbose:
-                            print(f"Vehicle {vehicle_idx + 1}: improved {original_cost:.2f} -> {detailed_cost:.2f}")
-                elif cost >= best_vehicle_cost:
-                    self.nodes_pruned += 1
+        #         cost, feasible = self.calculate_actual_solution_cost(start_depot, end_depot, required_edges)
+        #         print(f'cost = P{cost}, feasible = {feasible}')
+        #         self.nodes_explored += 1
+                
+        #         if feasible and cost < best_vehicle_cost:
+        #             route, detailed_cost, covered = self.design_trip_with_intelligent_tuning(
+        #                 start_depot, end_depot, required_edges
+        #             )
+        #             if route and covered == len(required_edges):
+        #                 best_vehicle_cost = detailed_cost
+        #                 best_vehicle_solution = (route, detailed_cost, covered)
+        #                 any_improvement = True
+        #                 if verbose:
+        #                     print(f"Vehicle {vehicle_idx + 1}: improved {original_cost:.2f} -> {detailed_cost:.2f}")
+        #         elif cost >= best_vehicle_cost:
+        #             self.nodes_pruned += 1
             
-            if best_vehicle_solution:
-                combined_solutions[vehicle_idx] = best_vehicle_solution
-                combined_cost += best_vehicle_cost
-            else:
-                combined_cost += original_cost  # No improvement, use original
+        #     if best_vehicle_solution:
+        #         combined_solutions[vehicle_idx] = best_vehicle_solution
+        #         combined_cost += best_vehicle_cost
+        #     else:
+        #         combined_cost += original_cost  # No improvement, use original
         
-        if any_improvement and combined_cost < upper_bound:
-            self.best_cost = combined_cost
-            self.best_solution = combined_solutions
-        else:
-            self.best_cost = upper_bound
-            self.best_solution = {}
+        # if any_improvement and combined_cost < upper_bound:
+        #     self.best_cost = combined_cost
+        #     self.best_solution = combined_solutions
+        # else:
+        #     self.best_cost = upper_bound
+        #     self.best_solution = {}
         
-        if verbose:
-            print(f"Multiple vehicle optimization complete: best combined cost {self.best_cost:.2f}")
+        # if verbose:
+        #     print(f"Multiple vehicle optimization complete: best combined cost {self.best_cost:.2f}")
         
-        return self.best_solution, self.best_cost
+        # return self.best_solution, self.best_cost
 
 
 def optimize_with_branch_bound_post_auction(G, vehicle_routes, vehicle_trip_times, depot_nodes, 
