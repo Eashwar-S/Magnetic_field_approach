@@ -33,27 +33,17 @@ class BranchBoundMagneticOptimizer:
         Calculate actual cost using magnetic field with intelligent tuning
         This is used as both lower bound and actual solution
         """
-        try:
-            # Use intelligent capacity tuner
-            tuner = IntelligentCapacityTuner(self.graph, start_depot, end_depot, 
-                                           self.vehicle_capacity, required_edges)
-            tuner.random_search(n_iterations=50)  # Quick evaluation for bounding
-            
-            if tuner.best_capacity and tuner.best_route and tuner.num_required_edges_covered == len(required_edges):
-                print(f'Intelligent tuning successful: capacity {tuner.best_capacity}, cost {tuner.best_cost}, covered {tuner.num_required_edges_covered}/{len(required_edges)}')
-                return tuner.best_cost, True  # cost, feasible
-            
-            # Fallback: use standard magnetic field router
-            router = MagneticFieldRouter(self.graph, start_depot, end_depot, self.vehicle_capacity)
-            route, cost, covered = router.find_trip_with_magnetic_scoring(required_edges)
-            
-            if route and covered == len(required_edges):
-                return cost, True
-            else:
-                return float('inf'), False
-                
-        except Exception as e:
+        # Use intelligent capacity tuner
+        tuner = IntelligentCapacityTuner(self.graph, start_depot, end_depot, 
+                                        self.vehicle_capacity, required_edges)
+        tuner.random_search(n_iterations=50)  # Quick evaluation for bounding
+        
+        if tuner.best_capacity and tuner.best_route:
+            print(f'Intelligent tuning successful: capacity {tuner.best_capacity}, cost {tuner.best_cost}, covered {tuner.num_required_edges_covered}/{len(required_edges)}')
+            return tuner.best_cost, True  # cost, feasible
+        else:
             return float('inf'), False
+        
     
     def branch_and_bound_optimization(self, vehicles_to_optimize, required_edges_per_vehicle, 
                                     original_costs, upper_bound, start_positions,  verbose=False):
