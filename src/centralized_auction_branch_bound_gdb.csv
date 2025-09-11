@@ -1,0 +1,13 @@
+,Instance Name,Number of Nodes,Number of Edges,Number of Required Edges,Capacity,Recharge Time,Total Number of Vehicles,Number of Depot Nodes,Number of vehicles failed,Maximum Trip Time,Number of Function Calls,Execution time for auction algorithm in sec,Maximum Trip Time after auction algorithm,% increase in maximum trip time,idle time,Average time per function call,Branch-bound optimization applied,Final Maximum Trip Time,Total improvement,Nodes explored,Nodes pruned
+0,gdb.1,11,19,10,40.0,80.0,5,5,3,37.0,3,39.3,264.0,613.5,0.0,13.1,True,264.0,-227.0,0,0
+1,gdb.10,12,22,11,40.0,80.0,5,5,2,39.0,2,8.79,258.0,561.5,0.0,4.395,True,258.0,-219.0,0,0
+2,gdb.11,12,22,11,44.0,88.0,4,4,1,39.0,1,5.245,159.0,307.7,0.0,5.245,True,159.0,-120.0,0,0
+3,gdb.12,11,22,11,18.0,36.0,2,2,1,107.0,1,29.008,215.0,100.9,0.0,29.008,True,215.0,-108.0,0,0
+4,gdb.13,12,22,11,40.0,80.0,4,4,2,136.0,2,25.144,350.0,157.4,0.0,12.572,True,350.0,-214.0,0,0
+5,gdb.14,11,22,11,18.0,36.0,2,2,1,108.0,1,23.06,216.0,100.0,0.0,23.06,True,216.0,-108.0,0,0
+6,gdb.15,13,23,12,60.0,120.0,3,3,2,217.0,2,235.559,885.0,307.8,0.0,117.779,True,885.0,-668.0,0,0
+7,gdb.16,12,25,13,38.0,76.0,2,2,1,239.0,1,7.999,367.0,53.6,0.0,7.999,True,367.0,-128.0,0,0
+8,gdb.17,12,25,13,38.0,76.0,2,2,1,239.0,1,2.488,351.0,46.9,0.0,2.488,True,351.0,-112.0,0,0
+9,gdb.18,12,25,13,38.0,76.0,2,2,1,239.0,1,50.449,553.0,131.4,0.0,50.449,True,553.0,-314.0,0,0
+10,gdb.19,12,26,13,40.0,80.0,3,3,1,239.0,1,1.457,262.0,9.6,6.0,1.457,True,262.0,-23.0,0,0
+11,gdb.2,7,21,11,16.0,32.0,2,2,1,97.0,1,15.344,193.0,99.0,0.0,15.344,True,193.0,-96.0,0,0

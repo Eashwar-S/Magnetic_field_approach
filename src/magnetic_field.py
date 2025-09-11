@@ -114,15 +114,18 @@ class MagneticFieldRouter:
         req_influences = self.calculate_required_edge_influence(required_to_cover)
         depot_influences = self.calculate_depot_influence()
         
+        # print(f'required edge influences - {req_influences}')
         P = sum(req_influences[edge].values()) if req_influences[edge] else 0.0
+        # print(f'P = {P}')
         D = depot_influences[edge]
         w = current_length / self.capacity if self.capacity > 0 else 0
         S = (1 - w) * P + w * D
         final_score = S
         if is_new_required:
-            final_score = 1000/total_required_edges + S  # Large bonus for uncovered required edges
-        else:
-            final_score = S + (2*self.capacity)/(self.capacity - current_length + 1)
+            final_scores = S + 1000
+        #     final_score = 1000/total_required_edges + S  # Large bonus for uncovered required edges
+        # else:
+        #     final_score = S + (2*self.capacity)/(self.capacity - current_length + 1)
             
         return {
             'P': P,
@@ -134,7 +137,7 @@ class MagneticFieldRouter:
             'normalized_weight': self.graph[edge[0]][edge[1]]['weight'] / self.max_edge_weight
         }
     
-    def find_trip_with_magnetic_scoring(self, required_edges, verbose=True):
+    def find_trip_with_magnetic_scoring(self, required_edges, verbose=False):
         current_route = [self.start_depot]
         current_length = 0
         required_covered = set()
@@ -150,7 +153,7 @@ class MagneticFieldRouter:
             # Update required edges to cover
             required_to_cover = [req for req in required_edges if tuple(sorted(req)) not in required_covered]
             
-            print(f'required edges to cover - {required_to_cover, required_covered}')
+            # print(f'required edges to cover - {required_to_cover, required_covered}')
             # Get all possible next edges
             for neighbor in self.graph.neighbors(current_node):
                 
@@ -169,12 +172,12 @@ class MagneticFieldRouter:
                             self.graph, neighbor, self.end_depot, weight='weight'
                         )
                     
-                    print(f"Evaluating edge ({current_node}, {neighbor})")
-                    print(f"  - Edge weight: {edge_weight}")
-                    print(f"  - Path to end length: {path_to_end_length}")
-                    print(f"  - Total would be: {current_length + edge_weight + path_to_end_length}")
-                    print(f"  - Capacity: {self.capacity}")
-                    print(f"  - Passes capacity check: {current_length + edge_weight + path_to_end_length <= self.capacity}")
+                    # print(f"Evaluating edge ({current_node}, {neighbor})")
+                    # print(f"  - Edge weight: {edge_weight}")
+                    # print(f"  - Path to end length: {path_to_end_length}")
+                    # print(f"  - Total would be: {current_length + edge_weight + path_to_end_length}")
+                    # print(f"  - Capacity: {self.capacity}")
+                    # print(f"  - Passes capacity check: {current_length + edge_weight + path_to_end_length <= self.capacity}")
                     # print(f"  - Is required: {is_new_required}")
                     if current_length + edge_weight + path_to_end_length > self.capacity:
                         continue
@@ -184,10 +187,11 @@ class MagneticFieldRouter:
                 is_new_required = (edge_sorted in [tuple(sorted(req)) for req in required_edges] 
                                 and edge_sorted not in required_covered)
                 
-                print(f'new required edge - {is_new_required}')
+                # print(f'new required edge - {is_new_required}')
                 
                 score_data = self.calculate_edge_score(edge, required_to_cover, current_length, is_new_required, total_required_edges)
                 
+                # print(f'score data - {score_data}')
                 candidates.append({
                     'edge': edge,
                     'neighbor': neighbor,
@@ -288,7 +292,7 @@ class MagneticFieldRouter:
             print(f"Final route: {current_route}, Length: {current_length:.2f}")
             print(f"Required covered: {len(required_covered)}/{len(required_edges)}")
         
-        print(current_route, current_length, required_covered, required_edges, len(required_covered))
+        # print(current_route, current_length, required_covered, required_edges, len(required_covered))
         return current_route, current_length, len(required_covered)
 
 class IntelligentCapacityTuner:
@@ -332,7 +336,7 @@ class IntelligentCapacityTuner:
             required_edges_convered = [tuple(edge) for edge in required_edges_convered]
             required_edges_convered = list(set(required_edges_convered))
             required_edges_convered = [list(edge) for edge in required_edges_convered]
-            print(route, required_edges_convered, self.required_edges, required_covered)
+            # print(route, required_edges_convered, self.required_edges, required_covered)
             assert(len(required_edges_convered) == required_covered)
         
         return {
@@ -369,8 +373,13 @@ class IntelligentCapacityTuner:
             # Generate a beta random variable skewed towards higher values
             beta_rv = np.random.beta(2, 1)
             # Scale to the range [self.max_capacity/5, self.max_capacity]
-            capacity = self.max_capacity / 5 + beta_rv * (self.max_capacity - self.max_capacity / 5)
-            # capacity = self.max_capacity * beta_rv
+            # capacity = self.max_capacity / 5 + beta_rv * (self.max_capacity - self.max_capacity / 5)
+            capacity = self.max_capacity*0.9 + beta_rv * (self.max_capacity*0.11)
+
+            capacity = np.clip(capacity, None, self.max_capacity)
+
+            
+            capacity = self.max_capacity
             result = self.evaluate_capacity(capacity)
             self.results.append(result)
             

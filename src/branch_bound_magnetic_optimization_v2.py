@@ -7,6 +7,7 @@ import time
 import os
 import pandas as pd
 import copy
+import itertools
 import re
 from centralized_auction_new import *
 from magnetic_field import MagneticFieldRouter, IntelligentCapacityTuner
@@ -43,15 +44,79 @@ class BranchBoundMagneticOptimizer:
         # Use intelligent capacity tuner
         tuner = IntelligentCapacityTuner(self.graph, start_depot, end_depot, 
                                         self.vehicle_capacity, required_edges)
-        tuner.random_search(n_iterations=50)  # Quick evaluation for bounding
+        tuner.random_search(n_iterations=100)  # Quick evaluation for bounding
         
-        if tuner.num_required_edges_covered >= 1:
-            return tuner
-        return None
+        # if tuner.num_required_edges_covered >= 1:
+        return tuner
+        # return None
         
+    # def refine_trip(self, trip, req_edges):
+        
+    #     traversal_trip_time = 0
+    #     t_index = 0
+    #     edges_traversed = False
+    #     for i in range(len(trip) - 1):
+    #         e_node = trip[i+1]
+    #         traversal_trip_time += self.graph[trip[i]][trip[i+1]]['weight']
+    #         edge = [trip[i], trip[i+1]]
+    #         if edge in req_edges:
+    #             req_edges.remove(edge)
+    #         if edge[::-1] in req_edges:
+    #             req_edges.remove(edge[::-1])
+
+    #         if len(req_edges) == 0:
+    #             edges_traversed = True
+            
+    #         if edges_traversed:
+    #             if e_node in self.depot_nodes:
+    #                 t_index = i+1
+    #                 break
+                
+    #     return trip[:t_index], traversal_trip_time
+
+    def refine_trip(self, trip, req_edges):
+        """
+        FIXED VERSION - stops at first depot after covering all required edges
+        """
+        req_edges_copy = req_edges.copy()  # Don't modify original
+        traversal_trip_time = 0
+        t_index = len(trip)  # Default to full trip
+        edges_traversed = False
+        
+        for i in range(len(trip) - 1):
+            e_node = trip[i+1]
+            edge_weight = self.graph[trip[i]][trip[i+1]]['weight']
+            traversal_trip_time += edge_weight
+            
+            edge = [trip[i], trip[i+1]]
+            
+            # Check if this edge is required (handle both directions)
+            if edge in req_edges_copy:
+                req_edges_copy.remove(edge)
+            elif edge[::-1] in req_edges_copy:
+                req_edges_copy.remove(edge[::-1])
+
+            # Check if all required edges are covered
+            if len(req_edges_copy) == 0:
+                edges_traversed = True
+            
+            # If all edges covered and we reach a depot, stop here
+            if edges_traversed and e_node in self.depot_nodes:
+                t_index = i + 1
+                break
+        
+        # Recalculate length for the actual returned trip
+        if t_index < len(trip):
+            actual_length = 0
+            for i in range(t_index):
+                if i < len(trip) - 1:
+                    actual_length += self.graph[trip[i]][trip[i+1]]['weight']
+            return trip[:t_index+1], actual_length  # +1 to include the depot node
+        
+        return trip, traversal_trip_time
     
     def branch_and_bound_optimization(self, vehicles_to_optimize, required_edges_per_vehicle, 
-                                    original_costs, upper_bound, start_positions,  verbose=False):
+                                    original_costs, traversed_costs, upper_bound, start_positions,  verbose=False):
         """
         Branch and bound optimization exploring depot combinations
         """
@@ -59,56 +124,98 @@ class BranchBoundMagneticOptimizer:
             print(f"Starting branch and bound with {len(vehicles_to_optimize)} vehicles")
             print(f"Upper bound (centralized auction total): {upper_bound}")
         
-    
+        
         
         if verbose:
             print(f"Branch and bound approach ")
         
+        counter = itertools.count()
         routes = {vehicle_idx: None for vehicle_idx in vehicles_to_optimize}
 
         for vehicle_idx in vehicles_to_optimize:
             required_edges = required_edges_per_vehicle[vehicle_idx]
             original_cost = original_costs[vehicle_idx]
-            
-            start_depot = start_positions[vehicle_idx]
+            traversed_cost = traversed_costs[vehicle_idx]
 
             best_vehicle_cost = original_cost
+            route_time_so_far = 0#traversed_cost
+            print(f'Starting routes time - {original_cost}')
             best_vehicle_solution = None
             best_trip_times = None
         
             
             root_node = Node(route=[], trip_times=[], route_time=0, required_edges_to_be_traversed=copy.deepcopy(required_edges))
             explored_nodes = []
-            heapq.heappush(explored_nodes, (len(root_node.required_edges_to_be_traversed), root_node))
-
+            priority = len(root_node.required_edges_to_be_traversed)
+            heapq.heappush(explored_nodes, (priority, next(counter), root_node))
+            iteration = 0
             while explored_nodes:
-
-                priority, node = heapq.heappop(explored_nodes)
+                
+                print(f'len of explored nodes - {len(explored_nodes)}')
+                priority, _, node = heapq.heappop(explored_nodes)
+                if len(node.route) == 0:
+                    start_depot = start_positions[vehicle_idx]
+                else:
+                    start_depot = node.route[-1][-1]
                 for end_depot in self.depot_nodes:
+                    
+                    iteration += 1
+                    
+
+                    print(f'------- Iteration - {iteration} ----------')
+
+                    print(f'start, end depots - {start_depot, end_depot}')
+                    print(f'node route so far - {node.route}')
+                    print(f'Node required edges to be traversed - {node.required_edges_to_be_traversed}')
 
                     tuner = self.trip_using_magnetic_field(start_depot, end_depot, copy.deepcopy(node.required_edges_to_be_traversed))
 
-                    if tuner is not None:
-                        left_over_required_edges = [edge for edge in node.required_edges_to_be_traversed if edge not in tuner.required_edges_convered]
-
-                        route_time_so_far = tuner.best_cost + self.recharge_time
+                    print(f'tuner - {tuner}')
+                    if tuner is not None:   
                         
+                        print(f'before refining - {tuner.best_route, tuner.best_cost}')
+                        tuner.best_route, tuner.best_cost = self.refine_trip(tuner.best_route, copy.deepcopy(tuner.required_edges_convered))
+                        print(f'after refining - {tuner.best_route, tuner.best_cost}')
+                        # print(f'required edges to be traversed - {node.required_edges_to_be_traversed}')
+                        # print(f'turner required edges - {tuner.required_edges_convered}')
+                        left_over_required_edges = [edge for edge in node.required_edges_to_be_traversed if edge not in tuner.required_edges_convered]
+                        # print(f'left over required edges - {left_over_required_edges}')
+                        route_time_so_far = node.route_time + tuner.best_cost + self.recharge_time
+                        
+                        
+                        print(f'nodes required edges - {node.required_edges_to_be_traversed}')
+                        print(f'required edges covered in current trip addition - {tuner.required_edges_convered}')
+                        print(f'trip time - {tuner.best_route, tuner.best_cost}')
+                        print(f'left over required edges - {left_over_required_edges}')
+                        print(f'Node possible route - {node.route + [tuner.best_route]}')
+                        print(f'Node routes time so far - {route_time_so_far}')
+                        # print(f'')
                         if route_time_so_far <= original_cost:
                             if left_over_required_edges:
                                 if node.route_time == 0: # root node
+                                    # print(f'root node details')
+                                    # print(f'route details - {tuner.best_route, tuner.best_cost}')
                                     child_node = Node(route=[tuner.best_route], trip_times=[tuner.best_cost], route_time=route_time_so_far, required_edges_to_be_traversed=left_over_required_edges)
                                 else:
-                                    child_node = Node(route=node.route.append(tuner.best_route), trip_times=node.trip_times.append(tuner.best_cost), route_time=route_time_so_far, required_edges_to_be_traversed=left_over_required_edges)                                    
-                                heapq.heappush(explored_nodes, (len(left_over_required_edges), child_node))
+                                    new_route = node.route + [tuner.best_route]  # Use + instead of append
+                                    new_trip_times = node.trip_times + [tuner.best_cost]
+                                    child_node = Node(route=new_route, trip_times=new_trip_times, route_time=route_time_so_far, required_edges_to_be_traversed=left_over_required_edges)
+                                priority = len(left_over_required_edges) + tuner.best_cost/tuner.max_capacity
+                                heapq.heappush(explored_nodes, (len(left_over_required_edges), next(counter), child_node))
                             else:
                                 if route_time_so_far <= best_vehicle_cost:
+                                    print()
+                                    print("------------- Entered here ------------------")
+                                    
                                     best_vehicle_cost = route_time_so_far
-                                    best_vehicle_solution = node.route
-                                    best_trip_times = node.trip_times
+                                    
+                                    best_vehicle_solution = node.route + [tuner.best_route]
+                                    best_trip_times = node.trip_times + [tuner.best_cost]
+                                    print()
             
             if best_vehicle_solution is not None:
                 routes[vehicle_idx] = (best_vehicle_solution, best_trip_times)
-
+        # print(routes)
         return routes
 
 
@@ -127,6 +234,7 @@ def optimize_with_branch_bound_post_auction(G, vehicle_routes, vehicle_trip_time
     vehicles_to_optimize = []
     required_edges_per_vehicle = {}
     original_costs = {}
+    traversed_costs = {}
     start_positions = [-1] * len(vehicle_routes)
     
     for vehicle_idx in range(len(vehicle_routes)):
@@ -168,11 +276,16 @@ def optimize_with_branch_bound_post_auction(G, vehicle_routes, vehicle_trip_time
             original_future_times = vehicle_trip_times[vehicle_idx][current_trip_idx:]
             original_cost = sum(original_future_times) + (len(original_future_times)) * recharge_time
             original_costs[vehicle_idx] = original_cost
+
+            traversed_times = vehicle_trip_times[vehicle_idx][:current_trip_idx]
+            traversed_cost = sum(traversed_times) + (len(traversed_times) - 1) * recharge_time
+            traversed_costs[vehicle_idx] = traversed_cost
     
-    print(f"Vehicles to optimize: {vehicles_to_optimize}")
-    print(f"Required edges per vehicle: {required_edges_per_vehicle}")
-    print(f"Original costs per vehicle: {original_costs}")
-    print(f"Start positions: {start_positions}")
+    # print(f"Vehicles to optimize: {vehicles_to_optimize}")
+    # print(f"Required edges per vehicle: {required_edges_per_vehicle}")
+    # print(f"Original costs per vehicle: {original_costs}")
+    # print(f'traversed costs per vehicle: {traversed_costs} ')
+    # print(f"Start positions: {start_positions}")
     if not vehicles_to_optimize:
         if verbose:
             print("No vehicles available for branch and bound optimization")
@@ -192,7 +305,7 @@ def optimize_with_branch_bound_post_auction(G, vehicle_routes, vehicle_trip_time
     
     # Run branch and bound optimization
     best_solutions = optimizer.branch_and_bound_optimization(
-        vehicles_to_optimize, required_edges_per_vehicle, original_costs, upper_bound, start_positions, verbose=verbose
+        vehicles_to_optimize, required_edges_per_vehicle, original_costs, traversed_costs, upper_bound, start_positions, verbose=verbose
     )
     
     # Apply improvements if found
@@ -203,6 +316,9 @@ def optimize_with_branch_bound_post_auction(G, vehicle_routes, vehicle_trip_time
             route, trip_times = vehicle_route
             current_trip_idx = vehicle_trip_index[vehicle_idx] + 1
             
+            # print(f'improved route and route time - {route, trip_times}')
+            # print(f'current trip index - {current_trip_idx}')
+
             # Replace future trips with optimized route
             improved_routes[vehicle_idx] = (vehicle_routes[vehicle_idx][:current_trip_idx] + route)
             improved_trip_times[vehicle_idx] = (vehicle_trip_times[vehicle_idx][:current_trip_idx] + trip_times)
@@ -302,7 +418,9 @@ def simulate_1_with_branch_bound_optimization(save_results_to_csv=False):
             start = time.time()
             print(f"\nStarting Centralized Auction with Branch & Bound")
             print(f"Initial mission time: {mission_time} time units")
-            
+            print(f"Required edges - {required_edges}")
+            print(f'vehicle capacity - {vehicle_capacity}')
+            print(f'depot nodes - {depot_nodes}')
             while t <= mission_time:
                 for i, k in enumerate(failure_vehicles):
                     if t == vehicle_failure_times[i]:
@@ -338,8 +456,10 @@ def simulate_1_with_branch_bound_optimization(save_results_to_csv=False):
                                                                                          depot_nodes, failure_trips, vehicle_capacity, 
                                                                                          recharge_time, uavLocation)
                     
+                    print(f"\n--- Centralized auction results after failure at t={t} ---")
                     print(f"vehicle routes after auction: {vehicle_routes}")
                     print(f"vehicle trip times after auction: {vehicle_trip_times}")
+                    # print()
                     num_function_calls += 1
                     detected_failed_vehicles = {}
                     
@@ -352,7 +472,7 @@ def simulate_1_with_branch_bound_optimization(save_results_to_csv=False):
                     # Apply branch & bound optimization
                     optimized_routes, optimized_trip_times, optimization_applied = optimize_with_branch_bound_post_auction(
                         G, vehicle_routes, vehicle_trip_times, depot_nodes, required_edges, 
-                        vehicle_capacity, recharge_time, vehicle_trip_index, failure_history, verbose=True
+                        vehicle_capacity, recharge_time, vehicle_trip_index, failure_history, verbose=False
                     )
 
                     print(f"vehicle routes after branch & bound: {optimized_routes}")
@@ -406,7 +526,7 @@ def simulate_1_with_branch_bound_optimization(save_results_to_csv=False):
             
             if save_results_to_csv:
                 df = pd.DataFrame(instanceData)
-                df.to_csv(f"{p}/results/instances_results_with_failure/centralized_auction_branch_bound_gdb.csv", index=True)
+                df.to_csv(f"centralized_auction_branch_bound_gdb.csv", index=True)
 
 
 if __name__ == "__main__":
