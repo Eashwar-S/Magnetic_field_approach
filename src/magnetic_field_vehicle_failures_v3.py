@@ -771,7 +771,7 @@ def simulate_1(save_results_to_csv=False, iterations=300):
         print()
         print("-"*50)
         print(f'Running GDB scenario {scenario_num}')
-        if True:#int(scenario_num) == 1:  # Process only scenario 1 for testing
+        if int(scenario_num) == 1:  # Process only scenario 1 for testing
             # Parse txt file
             txt_path = os.path.join(txt_folder, file)
             G, required_edges, depot_nodes, vehicle_capacity, recharge_time, num_vehicles, failure_vehicles, vehicle_failure_times = parse_txt_file(txt_path)
@@ -961,7 +961,7 @@ def simulate_2(save_results_to_csv=False):
         print()
         print("-"*50)
         print(f'Running BCCM scenario {scenario_num}')
-        if True:#int(scenario_num) == 1:  # Process only scenario 1 for testing
+        if int(scenario_num) == 1:  # Process only scenario 1 for testing
             # Parse txt file
             txt_path = os.path.join(txt_folder, file)
             G, required_edges, depot_nodes, vehicle_capacity, recharge_time, num_vehicles, failure_vehicles, vehicle_failure_times = parse_txt_file(txt_path)
@@ -1311,6 +1311,6 @@ def simulate_3(save_results_to_csv=False):
 
 
 if __name__ == "__main__":
-    simulate_1(save_results_to_csv=True, iterations=300)
+    simulate_1(save_results_to_csv=False, iterations=300)
     # simulate_2(save_results_to_csv=False, iterations=300)
     # simulate_3(save_results_to_csv=True, iterations=300)

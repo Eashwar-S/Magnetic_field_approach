@@ -49,6 +49,30 @@ class BranchBoundMagneticOptimizer:
         # if tuner.num_required_edges_covered >= 1:
         return tuner
         # return None
+        
+    # def refine_trip(self, trip, req_edges):
+        
+    #     traversal_trip_time = 0
+    #     t_index = 0
+    #     edges_traversed = False
+    #     for i in range(len(trip) - 1):
+    #         e_node = trip[i+1]
+    #         traversal_trip_time += self.graph[trip[i]][trip[i+1]]['weight']
+    #         edge = [trip[i], trip[i+1]]
+    #         if edge in req_edges:
+    #             req_edges.remove(edge)
+    #         if edge[::-1] in req_edges:
+    #             req_edges.remove(edge[::-1])
+
+    #         if len(req_edges) == 0:
+    #             edges_traversed = True
+            
+    #         if edges_traversed:
+    #             if e_node in self.depot_nodes:
+    #                 t_index = i+1
+    #                 break
+                
+    #     return trip[:t_index], traversal_trip_time
 
     def refine_trip(self, trip, req_edges):
         """
